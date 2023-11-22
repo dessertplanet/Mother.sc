@@ -24,8 +24,6 @@ m.sendMsg("/oled/line/1", ~loadingMessage);
 	~knobs.put(i.asSymbol, Bus.control(s, numChannels: 1));
 };
 
-~knobs
-
 /*
 Knobs are saved to control buses!
 */
