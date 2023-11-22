@@ -17,10 +17,9 @@ m.sendMsg("/oled/setscreen",3);
 ~loadingMessage = "/Path/mother.scd";
 m.sendMsg("/oled/line/1", ~loadingMessage);
 
-~knobs = ();
-
+~knobs = Array.newClear(5);
 5.do { |i|
-	~knobs.put(i.asSymbol, Bus.control(s, numChannels: 1));
+	~knobs.put(i, Bus.control(server: s, numChannels: 1));
 };
 
 /*
@@ -64,11 +63,10 @@ OSCdef( \OrganelleKnobs,
 		5.do {
 			|i|
 			val = msg[i+1] / 1023;
-			bus = ~knobs[i.asSymbol];
+			bus = ~knobs[i];
 			if (s.serverRunning) {
 				if (val != bus.getSynchronous) {
 					bus.set(val);
-					val.postln;
 					if (i == 4) {
 						s.volume.volume = val.ampdb;
 					}
