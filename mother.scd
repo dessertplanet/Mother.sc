@@ -129,7 +129,8 @@ OSCdef( \rcvPeakRMS,
 		});
 
 		~vuBus.get({|channels|
-		m.sendMsg("/oled/vumeter", channels[2], channels[3], channels[0], channels[1], peakBitmask);
+		m.sendMsg("/oled/vumeter", channels[2], channels[3], channels[0], channels[1], peakBitmask)
+			channels.postln;
 		});
 
 	},
@@ -198,15 +199,5 @@ s.waitForBoot({
 		}).add.play
 	)
 });
-
-///////Testing
-
-SynthDef(\test, {
-	var sig;
-	sig = SinOsc.ar(freq: In.kr(0).lag(0.1) * 2000, mul: In.kr(1).lag(0.1));
-	Out.ar(0, sig);
-}).add;
-
-// Synth(\test);
 
 
