@@ -1,19 +1,20 @@
-// mother host output
 // Server.default = Server.remote(\organelle, NetAddr(~mother, 57110), o)
 
+//Environment variables
 ~motherHostname = "localhost";
 ~langPort = 57120;
 ~serverPort = 57110;
 ~organelleListenPort = 4001;
 ~organelleSendPort = 4000;
 
+//Env variable for organelle destination (use for screen, led, OS communication)
 m = NetAddr(~motherHostname, ~organelleListenPort);
 
 m.sendMsg("/patchLoaded",1);
 m.sendMsg("/oled/setscreen",3);
 
+//Display a helpful message to indicate this is an SC patch
 ~loadingMessage = "/Path/mother.scd";
-
 m.sendMsg("/oled/line/1", ~loadingMessage);
 
 /*
@@ -34,7 +35,6 @@ notes:
 aux key = 0, C = 1 (and midi = 60)
 knobs 1-4 = pots, 5 = volume , 6 = expr pedal
 enc = 1 = clockwise, 0 anti
-
 */
 
 OSCdef( \OrganelleKeys,
