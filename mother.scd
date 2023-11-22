@@ -3,26 +3,11 @@
 
 ~mother = "localhost";
 ~motherHost = NetAddr(~mother, 4001);
-~loopback = NetAddr(~mother, 4000);
 
 ~motherHost.sendMsg("/patchLoaded",1);
 ~motherHost.sendMsg("/oled/setscreen",3);
-~out = Bus.audio(s, 2);
 
-
-// oled function
-~oled=();
-~oled[\screen] = {
-    arg self,line,str;
-    ~motherHost.sendMsg(format("/oled/line/%",line), str);
-};
-
-~oled.screen(1,"/Patch/mother.scd");
-
-~led = {
-	arg i;
-	~motherHost.sendMsg("/led", i.asInteger);
-};
+~motherHost.sendMsg(\oled,"sceen", 1, "/Patch/mother.scd");
 
 /*
 OSC Handling
