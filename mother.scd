@@ -68,6 +68,7 @@ OSCdef( \OrganelleKnobs,
 			if (s.serverRunning) {
 				if (val != bus.getSynchronous) {
 					bus.set(val);
+					val.postln;
 					if (i == 4) {
 						s.volume.volume = val.ampdb;
 					}
