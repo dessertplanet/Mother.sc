@@ -194,10 +194,6 @@ s.waitForBoot({
 });
 
 
-{SinOsc.ar * In.kr(0)}.play
-s.freeAll
-
-
 
 
 
