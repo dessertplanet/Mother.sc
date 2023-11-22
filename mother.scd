@@ -111,6 +111,7 @@ OSCdef( \rcvPeakRMS,
 	{
 		arg msg, time, addr, recvPort;
 		var index, rms, peak, now, peakBitmask = 0;
+		now = Array.newClear(4);
 		index = msg[2];
 		peak = msg[3];
 		rms = msg[4];
@@ -121,10 +122,15 @@ OSCdef( \rcvPeakRMS,
 			peakBitmask.setBit(index, false);
 		};
 		//rotate bitmask so that peaks line up with Organelle UI: In1, In2, Out1, Out2
-		peakBitmask = peakBitmask.asBinaryDigits.rotate(2);
+		peakBitmask = peakBitmask.asBinaryDigits[4..7].rotate(2);
+		peakBitmask = peakBitmask.sum({
+			|bit, i|
+			bit * 2.pow(3 - i);
+		});
 
-		now = ~vuBus.getnSynchronous(4) * 11;
-		m.sendMsg("/oled/vumeter", now[2], now[3], now[0], now[1], peakBitmask);
+		~vuBus.get({|channels|
+		m.sendMsg("/oled/vumeter", channels[2], channels[3], channels[0], channels[1], peakBitmask);
+		});
 
 	},
 	"/rcvPeakRMS",
@@ -193,9 +199,17 @@ s.waitForBoot({
 	)
 });
 
+///////Testing
 
+SynthDef(\test, {
+	var sig;
+	sig = SinOsc.ar(freq: In.kr(0).lag(0.1) * 2000, mul: In.kr(1).lag(0.1));
+	Out.ar(0, sig);
+}).add;
+s.freeAll;
+Synth(\OrganelleIO);
+Synth(\test);
 
-
-
+7.asBinaryDigits[4..7].sum({|bit, i| bit * 2.pow(3 - i); });
 
 
