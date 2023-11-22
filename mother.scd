@@ -20,6 +20,7 @@ m.sendMsg("/oled/line/1", ~loadingMessage);
 ~knobs = Array.newClear(5);
 5.do { |i|
 	~knobs.put(i, Bus.control(server: s, numChannels: 1));
+	~knobs[i].set(0);
 };
 
 /*
