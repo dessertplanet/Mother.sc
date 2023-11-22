@@ -10,6 +10,9 @@
 //Env variable for organelle destination (use for screen, led, OS communication)
 m = NetAddr(~motherHostname, ~organelleListenPort);
 
+//Env variable for sending messages back to sclang
+~self = NetAddr(~motherHostname, ~langPort);
+
 m.sendMsg("/patchLoaded",1);
 m.sendMsg("/oled/setscreen",3);
 
@@ -17,14 +20,9 @@ m.sendMsg("/oled/setscreen",3);
 ~loadingMessage = "/Path/mother.scd";
 m.sendMsg("/oled/line/1", ~loadingMessage);
 
-~knobs = Array.newClear(5);
-5.do { |i|
-	~knobs.put(i, Bus.control(server: s, numChannels: 1));
-};
 
-/*
-Knobs are saved to control buses!
-*/
+
+
 /*
 OSC Handling
 Organelle OSC inbound messages
@@ -56,6 +54,17 @@ OSCdef( \OrganelleKeys,
 	recvPort:~organelleHWPort
 );
 
+//KNOBS////////////////
+/*
+Knob values are saved to server-side control buses!
+get a knob value by using (for example) ~knobs[0].get or In.kr(0, 1) or Bus(\control, 0, 1).get
+*/
+~knobs = Array.newClear(5);
+5.do { |i|
+	~knobs.put(i, Bus.control(server: s, numChannels: 1));
+};
+
+
 OSCdef( \OrganelleKnobs,
 	{
 		arg msg, time, addr, recvPort;
@@ -78,38 +87,10 @@ OSCdef( \OrganelleKnobs,
 	recvPort:~organelleHWPort
 );
 
-OSCdef( \OrganelleEncTurn,
-	{
-		arg msg, time, addr, recvPort;
-	},
-	"/enc",
-	recvPort:~organelleHWPort
-);
+//not defined here!	"/enc"
+//not defined here!	"/encbut"
+//not defined here!	"/fs"
 
-OSCdef( \OrganelleEncBut,
-	{
-		arg msg, time, addr, recvPort;
-	},
-	"/encbut",
-	recvPort:~organelleHWPort
-);
-
-OSCdef( \OrganelleFootSwitch,
-	{
-		arg msg, time, addr, recvPort;
-
-	},
-	"/fs",
-	recvPort:~organelleHWPort
-);
-
-OSCdef( \OrganelleAudioLevel,
-	{
-		arg msg, time, addr, recvPort;
-		msg.postln;
-	},
-	"/audioLevel"
-);
 
 OSCdef( \KillPatch,
 	{
@@ -120,6 +101,15 @@ OSCdef( \KillPatch,
 		);
 	},
 	"/quit"
+);
+
+OSCdef( \rcvPeakRMS,
+	{
+		arg msg, time, addr, recvPort;
+		msg.postln;
+	},
+	"/rcvPeakRMS",
+	recvPort: ~langPort
 );
 
 //Setup MIDI, pulling device from Organelle settings in /sdcard/patch_loaded.sh
@@ -151,18 +141,25 @@ OSCdef( \KillPatch,
 s.options.bindAddress = "0.0.0.0";
 s.waitForBoot({
 	(
-        // Removed routine here
 		m.sendMsg("/oled/line/1","remote server ready");
 		m.sendMsg("/led", 2);
 		s.volume.lag = 0.2;
+		s.volume.volume = 0.1.ampdb;
 		~setupMIDI.();
+
+		SynthDef(\OrganelleIO, {
+			var sigLR, insigLR;
+			sigLR = Bus(rate: \audio, index: 0, numChannels: 2);
+			insigLR = Bus(rate: \audio, index: 2, numChannels: 2);
+			SendPeakRMS.kr(
+				sig: sigLR,
+				cmdName: '/rcvPeakRMS'
+			);
+		}).add;
+
+		Synth(\OrganelleIO);
 	)
 });
-
-
-///TESTING
-
-///{SinOsc.ar(mul: 0.2)}.play
 
 
 
