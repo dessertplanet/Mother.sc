@@ -60,7 +60,7 @@ OSCdef( \OrganelleKeys,
 OSCdef( \OrganelleKnobs,
 	{
 		arg msg, time, addr, recvPort;
-		var val;
+		var val = ();
 		~knobs.do {
 			|bus, i|
 			val[i] = msg[i+1] / 1023;
