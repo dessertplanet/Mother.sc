@@ -159,9 +159,7 @@ s.waitForBoot({
 				sig: sigLR,
 				cmdName: '/rcvPeakRMS'
 			);
-		}).add;
-
-		Synth(\OrganelleIO);
+		}).add.play
 	)
 });
 
