@@ -123,11 +123,9 @@ OSCdef( \rcvPeakRMS,
 		//rotate bitmask so that peaks line up with Organelle UI: In1, In2, Out1, Out2
 		peakBitmask = peakBitmask.asBinaryDigits.rotate(2);
 
-		~vuBus.getn(4, { |channels|
-			m.sendMsg("/oled/vumeter", channels[2], channels[3], channels[0], channels[1], peakBitmask);
-			channels.postln;
-			peakBitmask.postln;
-		})
+		now = ~vuBus.getnSynchronous(4) * 11;
+		m.sendMsg("/oled/vumeter", now[2], now[3], now[0], now[1], peakBitmask);
+
 	},
 	"/rcvPeakRMS",
 	recvPort: ~langPort
@@ -195,7 +193,11 @@ s.waitForBoot({
 	)
 });
 
+
+{SinOsc.ar * In.kr(0)}.play
 s.freeAll
+
+
 
 
 
