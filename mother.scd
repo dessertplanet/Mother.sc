@@ -65,8 +65,8 @@ OSCdef( \OrganelleKnobs,
 			|bus, i|
 			val[i] = msg[i+1] / 1023;
 			if (s.serverRunning) {
-				if (val[i] != bus.getSynchronous) {
-					bus.set(val);
+				if (val[i] != ~knobs[i.asSymbol].getSynchronous) {
+					bus.set(val[i]);
 					val[i].postln;
 					if (i == 4) {
 						s.volume.volume = val.ampdb;
