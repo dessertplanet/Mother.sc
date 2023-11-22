@@ -104,7 +104,7 @@ OSCdef( \KillPatch,
 );
 
 //VUMeter///////
-//Setup control busses for VU meter
+//Setup control bus for VU meter
 ~vuBus = Bus.control(server: s, numChannels: 4);
 
 OSCdef( \rcvPeakRMS,
@@ -114,7 +114,7 @@ OSCdef( \rcvPeakRMS,
 		index = msg[2];
 		peak = msg[3];
 		rms = msg[4];
-		~vuBus.setAt(offset: index, values: rms);
+		~vuBus.setAt(offset: index, values: [ rms ]);
 		if ( peak >= 1.0 ){
 			peakBitmask.setBit(index, true);
 		}{
@@ -194,6 +194,8 @@ s.waitForBoot({
 		}).add.play
 	)
 });
+
+s.freeAll
 
 
 
