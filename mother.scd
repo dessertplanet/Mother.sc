@@ -129,8 +129,10 @@ OSCdef( \rcvPeakRMS,
 		});
 
 		~vuBus.get({|channels|
-		m.sendMsg("/oled/vumeter", channels[2], channels[3], channels[0], channels[1], peakBitmask);
-			channels.postln;
+			var levels;
+			levels = channels * 11;
+			m.sendMsg("/oled/vumeter", levels[2], levels[3], levels[0], levels[1], peakBitmask);
+			levels.postln;
 		});
 
 	},
