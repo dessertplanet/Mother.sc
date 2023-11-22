@@ -60,14 +60,15 @@ OSCdef( \OrganelleKeys,
 OSCdef( \OrganelleKnobs,
 	{
 		arg msg, time, addr, recvPort;
-		var val = ();
-		~knobs.do {
-			|bus, i|
-			val[i] = msg[i+1] / 1023;
+		var val, bus;
+		5.do {
+			|i|
+			val = msg[i+1] / 1023;
+			bus = ~knobs[i.asSymbol];
 			if (s.serverRunning) {
-				if (val[i] != ~knobs[i.asSymbol].getSynchronous) {
-					bus.set(val[i]);
-					val[i].postln;
+				if (val != bus.getSynchronous) {
+					bus.set(val);
+					val.postln;
 					if (i == 4) {
 						s.volume.volume = val.ampdb;
 					}
