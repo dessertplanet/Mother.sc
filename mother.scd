@@ -133,7 +133,7 @@ s.options.bindAddress = "0.0.0.0";
 s.waitForBoot({
 	(
         // Removed routine here
-		m.sendMsg("oled/line/1","remote server ready");
+		m.sendMsg("/oled/line/1","remote server ready");
 		m.sendMsg("/led", 2);
 		s.volume.lag = 0.2;
 		~setupMIDI.();
