@@ -17,7 +17,7 @@
     ~motherHost.sendMsg(format("/oled/line/%",line), str);
 };
 
-~oled.screen(1,"/Patch/mother.scd");
+~oled.screen(1,"Deeeerp!");
 
 ~led = {
 	arg i;
