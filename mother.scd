@@ -148,9 +148,13 @@ s.waitForBoot({
 		~setupMIDI.();
 
 		SynthDef(\OrganelleIO, {
-			var sigLR, insigLR;
-			sigLR = Bus(rate: \audio, index: 0, numChannels: 2);
-			insigLR = Bus(rate: \audio, index: 2, numChannels: 2);
+			var sigLR, insigLR, busLR, inbusLR;
+			busLR = Bus(rate: \audio, index: 0, numChannels: 2);
+			inbusLR = Bus(rate: \audio, index: 2, numChannels: 2);
+
+			sigLR = In.ar(busLR, 2);
+			insigLR = In.ar(inbusLR, 2);
+
 			SendPeakRMS.kr(
 				sig: sigLR,
 				cmdName: '/rcvPeakRMS'
