@@ -1,4 +1,4 @@
-// Server.default = Server.remote(\organelle, NetAddr(~motherHostName, ~serverPort), o)
+// Server.default = Server.remote(\organelle, NetAddr("organellem.local", 57110), o)
 //Environment variables
 ~motherHostname = "localhost";
 //~motherHostname = "organellem.local"
@@ -74,7 +74,7 @@ OSCdef( \OrganelleKnobs,
 			val = msg[i+1] / 1023;
 			bus = ~knobs[i];
 			if (s.serverRunning) {
-				if (val != bus.getSynchronous) {
+				if (val != bus.get) {
 					bus.set(val);
 					if (i == 4) {
 						s.volume.volume = val.ampdb;
@@ -103,10 +103,31 @@ OSCdef( \KillPatch,
 	"/quit"
 );
 
+//VUMeter///////
+//Setup control busses for VU meter
+~vuBus = Bus.control(server: s, numChannels: 4);
+
 OSCdef( \rcvPeakRMS,
 	{
 		arg msg, time, addr, recvPort;
-		msg.postln;
+		var index, rms, peak, now, peakBitmask = 0;
+		index = msg[2];
+		peak = msg[3];
+		rms = msg[4];
+		~vuBus.setAt(offset: index, values: rms);
+		if ( peak >= 1.0 ){
+			peakBitmask.setBit(index, true);
+		}{
+			peakBitmask.setBit(index, false);
+		};
+		//rotate bitmask so that peaks line up with Organelle UI: In1, In2, Out1, Out2
+		peakBitmask = peakBitmask.asBinaryDigits.rotate(2);
+
+		~vuBus.getn(4, { |channels|
+			m.sendMsg("/oled/vumeter", channels[2], channels[3], channels[0], channels[1], peakBitmask);
+			channels.postln;
+			peakBitmask.postln;
+		})
 	},
 	"/rcvPeakRMS",
 	recvPort: ~langPort
@@ -148,20 +169,33 @@ s.waitForBoot({
 		~setupMIDI.();
 
 		SynthDef(\OrganelleIO, {
-			var sigLR, insigLR, busLR, inbusLR;
-			busLR = Bus(rate: \audio, index: 0, numChannels: 2);
-			inbusLR = Bus(rate: \audio, index: 2, numChannels: 2);
-
-			sigLR = In.ar(busLR, 2);
-			insigLR = In.ar(inbusLR, 2);
-
-			SendPeakRMS.kr(
-				sig: sigLR,
-				cmdName: '/rcvPeakRMS'
-			);
+			var buses, sigs;
+			buses = Array.newClear(4);
+			sigs = Array.newClear(4);
+			4.do { |i|
+				buses.put(i, Bus(rate: \audio, index: i, numChannels: 1));
+				sigs.put(i, In.ar(buses[i], 1));
+				if (i < 2) {
+					//OUTPUTS
+					SendPeakRMS.kr(
+						sig: sigs[i],
+						cmdName: '/rcvPeakRMS',
+						replyID: i
+					);
+				}{
+					//INPUTS
+					SendPeakRMS.kr(
+						sig: sigs[i],
+						cmdName: '/rcvPeakRMS',
+						replyID: i
+					);
+				}
+			}
 		}).add.play
 	)
 });
+
+
 
 
 
