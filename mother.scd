@@ -130,9 +130,8 @@ OSCdef( \rcvPeakRMS,
 
 		~vuBus.get({|channels|
 			var levels;
-			levels = channels * 11;
+			levels = (channels * 11).asInteger;
 			m.sendMsg("/oled/vumeter", levels[2], levels[3], levels[0], levels[1], peakBitmask);
-			levels.postln;
 		});
 
 	},
@@ -201,5 +200,9 @@ s.waitForBoot({
 		}).add.play
 	)
 });
+
+x = Synth(\default);
+
+x.free
 
 
