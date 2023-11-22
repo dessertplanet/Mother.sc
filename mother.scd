@@ -62,7 +62,7 @@ OSCdef( \OrganelleKnobs,
 		arg msg, time, addr, recvPort;
 		var val;
 		~knobs.do {
-			|i, bus|
+			|bus, i|
 			val = msg[i+1] / 1023;
 			if (val != bus.getSynchronous) {
 				bus.set(val);
