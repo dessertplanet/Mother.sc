@@ -1,13 +1,20 @@
 // mother host output
 // Server.default = Server.remote(\organelle, NetAddr(~mother, 57110), o)
 
-~mother = "localhost";
-~motherHost = NetAddr(~mother, 4001);
+~motherHostname = "localhost";
+~langPort = 57120;
+~serverPort = 57110;
+~organelleListenPort = 4001;
+~organelleSendPort = 4000;
 
-~motherHost.sendMsg("/patchLoaded",1);
-~motherHost.sendMsg("/oled/setscreen",3);
+m = NetAddr(~motherHostname, ~organelleListenPort);
 
-~motherHost.sendMsg(\oled,"sceen", 1, "/Patch/mother.scd");
+m.sendMsg("/patchLoaded",1);
+m.sendMsg("/oled/setscreen",3);
+
+~loadingMessage = "/Path/mother.scd";
+
+m.sendMsg("/oled/line/1", ~loadingMessage);
 
 /*
 OSC Handling
@@ -38,7 +45,7 @@ OSCdef( \OrganelleKeys,
 		//KEY STUFF JERE
 	},
 	"/key",
-	recvPort:4000
+	recvPort:~organelleSendPort
 );
 
 OSCdef( \OrganelleKnobs,
@@ -49,7 +56,7 @@ OSCdef( \OrganelleKnobs,
 		s.volume.volume = val;
 	},
 	"/knobs",
-	recvPort:4000
+	recvPort:~organelleSendPort
 );
 
 OSCdef( \OrganelleEncTurn,
@@ -57,7 +64,7 @@ OSCdef( \OrganelleEncTurn,
 		arg msg, time, addr, recvPort;
 	},
 	"/enc",
-	recvPort:4000
+	recvPort:~organelleSendPort
 );
 
 OSCdef( \OrganelleEncBut,
@@ -65,7 +72,7 @@ OSCdef( \OrganelleEncBut,
 		arg msg, time, addr, recvPort;
 	},
 	"/encbut",
-	recvPort:4000
+	recvPort:~organelleSendPort
 );
 
 OSCdef( \OrganelleFootSwitch,
@@ -74,7 +81,7 @@ OSCdef( \OrganelleFootSwitch,
 
 	},
 	"/fs",
-	recvPort:4000
+	recvPort:~organelleSendPort
 );
 
 OSCdef( \OrganelleAudioLevel,
@@ -98,7 +105,9 @@ OSCdef( \KillPatch,
 
 //Setup MIDI, pulling device from Organelle settings in /sdcard/patch_loaded.sh
 ~setupMIDI = {
-	var patch_loaded = File("/sdcard/patch_loaded.sh", "r"), lines, devicesetting, sources;
+	var patch_loaded, lines, devicesetting, sources;
+
+	patch_loaded = File("/sdcard/patch_loaded.sh", "r");
 
 	lines = patch_loaded.readAllString.split($\n);
 
@@ -124,10 +133,10 @@ s.options.bindAddress = "0.0.0.0";
 s.waitForBoot({
 	(
         // Removed routine here
-		~oled.screen(1,"remote server ready");
-		~led.value(2);
+		m.sendMsg("oled/line/1","remote server ready");
+		m.sendMsg("/led", 2);
 		s.volume.lag = 0.2;
-		~setupMIDI.value();
+		~setupMIDI.();
 	)
 });
 
