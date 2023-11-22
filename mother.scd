@@ -1,7 +1,8 @@
-// Server.default = Server.remote(\organelle, NetAddr(~mother, 57110), o)
+// Server.default = Server.remote(\organelle, NetAddr(~motherHostName, ~serverPort), o)
 
 //Environment variables
 ~motherHostname = "localhost";
+//~motherHostname = "organellem.local"
 ~langPort = 57120;
 ~serverPort = 57110;
 ~organelleListenPort = 4001;
@@ -20,8 +21,10 @@ m.sendMsg("/oled/line/1", ~loadingMessage);
 ~knobs = ();
 
 5.do { |i|
-	~knobs.put(i.asSymbol, Bus.control(server: Server.local,numChannels: 1));
+	~knobs.put(i.asSymbol, Bus.control(s, numChannels: 1));
 };
+
+~knobs
 
 /*
 Knobs are saved to control buses!
@@ -64,10 +67,12 @@ OSCdef( \OrganelleKnobs,
 		~knobs.do {
 			|bus, i|
 			val = msg[i+1] / 1023;
-			if (val != bus.getSynchronous) {
-				bus.set(val);
-				if (i == 4) {
-					s.volume.volume = val.ampdb;
+			if (s.serverRunning) {
+				if (val != bus.getSynchronous) {
+					bus.set(val);
+					if (i == 4) {
+						s.volume.volume = val.ampdb;
+					}
 				}
 			}
 		}
