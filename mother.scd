@@ -5,7 +5,7 @@
 ~langPort = 57120;
 ~serverPort = 57110;
 ~organelleListenPort = 4001;
-~organelleSendPort = 4000;
+~organelleHWPort = 4000;
 
 //Env variable for organelle destination (use for screen, led, OS communication)
 m = NetAddr(~motherHostname, ~organelleListenPort);
@@ -17,6 +17,15 @@ m.sendMsg("/oled/setscreen",3);
 ~loadingMessage = "/Path/mother.scd";
 m.sendMsg("/oled/line/1", ~loadingMessage);
 
+~knobs = ();
+
+5.do { |i|
+	~knobs.put(i.asSymbol, Bus.control(s, 1));
+}
+
+/*
+Knobs are saved to control buses!
+*/
 /*
 OSC Handling
 Organelle OSC inbound messages
@@ -45,18 +54,26 @@ OSCdef( \OrganelleKeys,
 		//KEY STUFF JERE
 	},
 	"/key",
-	recvPort:~organelleSendPort
+	recvPort:~organelleHWPort
 );
 
 OSCdef( \OrganelleKnobs,
 	{
 		arg msg, time, addr, recvPort;
 		var val;
-		val = (msg[5]/1023).ampdb;
-		s.volume.volume = val;
+		~knobs.do {
+			|i, bus|
+			val = msg[i+1] / 1023;
+			if (val != bus.getSynchronous) {
+				bus.set(val);
+				if (i == 4) {
+					s.volume.volume = val.ampdb;
+				}
+			}
+		}
 	},
 	"/knobs",
-	recvPort:~organelleSendPort
+	recvPort:~organelleHWPort
 );
 
 OSCdef( \OrganelleEncTurn,
@@ -64,7 +81,7 @@ OSCdef( \OrganelleEncTurn,
 		arg msg, time, addr, recvPort;
 	},
 	"/enc",
-	recvPort:~organelleSendPort
+	recvPort:~organelleHWPort
 );
 
 OSCdef( \OrganelleEncBut,
@@ -72,7 +89,7 @@ OSCdef( \OrganelleEncBut,
 		arg msg, time, addr, recvPort;
 	},
 	"/encbut",
-	recvPort:~organelleSendPort
+	recvPort:~organelleHWPort
 );
 
 OSCdef( \OrganelleFootSwitch,
@@ -81,7 +98,7 @@ OSCdef( \OrganelleFootSwitch,
 
 	},
 	"/fs",
-	recvPort:~organelleSendPort
+	recvPort:~organelleHWPort
 );
 
 OSCdef( \OrganelleAudioLevel,
