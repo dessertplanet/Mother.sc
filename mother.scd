@@ -1,5 +1,4 @@
 // Server.default = Server.remote(\organelle, NetAddr(~motherHostName, ~serverPort), o)
-
 //Environment variables
 ~motherHostname = "localhost";
 //~motherHostname = "organellem.local"
@@ -64,11 +63,11 @@ OSCdef( \OrganelleKnobs,
 		var val;
 		~knobs.do {
 			|bus, i|
-			val = msg[i+1] / 1023;
+			val[i] = msg[i+1] / 1023;
 			if (s.serverRunning) {
-				if (val != bus.getSynchronous) {
+				if (val[i] != bus.getSynchronous) {
 					bus.set(val);
-					val.postln;
+					val[i].postln;
 					if (i == 4) {
 						s.volume.volume = val.ampdb;
 					}
