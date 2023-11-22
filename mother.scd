@@ -206,10 +206,7 @@ SynthDef(\test, {
 	sig = SinOsc.ar(freq: In.kr(0).lag(0.1) * 2000, mul: In.kr(1).lag(0.1));
 	Out.ar(0, sig);
 }).add;
-s.freeAll;
-Synth(\OrganelleIO);
-Synth(\test);
 
-7.asBinaryDigits[4..7].sum({|bit, i| bit * 2.pow(3 - i); });
+// Synth(\test);
 
 
