@@ -1,27 +1,19 @@
-// Server.default = Server.remote(\organelle, NetAddr("organellem.local", 57110), o)
+// Server.default = Server.remote(\organelle, NetAddr("localhost", 57110), o)
 //Environment variables
-~motherHostname = "localhost";
-//~motherHostname = "organellem.local"
-~langPort = 57120;
-~serverPort = 57110;
-~organelleListenPort = 4001;
-~organelleHWPort = 4000;
+~mother = "localhost";
 
 //Env variable for organelle destination (use for screen, led, OS communication)
-m = NetAddr(~motherHostname, ~organelleListenPort);
+m = NetAddr(~mother, 4001);
 
 //Env variable for sending messages back to sclang
-~self = NetAddr(~motherHostname, ~langPort);
+~self = NetAddr(~mother, 57120);
 
 m.sendMsg("/patchLoaded",1);
 m.sendMsg("/oled/setscreen",3);
 
 //Display a helpful message to indicate this is an SC patch
-~loadingMessage = "/Path/mother.scd";
+~loadingMessage = "/Patch/mother.scd";
 m.sendMsg("/oled/line/1", ~loadingMessage);
-
-
-
 
 /*
 OSC Handling
@@ -51,7 +43,7 @@ OSCdef( \OrganelleKeys,
 		//KEY STUFF JERE
 	},
 	"/key",
-	recvPort:~organelleHWPort
+	recvPort:4000
 );
 
 //KNOBS////////////////
@@ -59,9 +51,10 @@ OSCdef( \OrganelleKeys,
 Knob values are saved to server-side control buses!
 get a knob value by using (for example) ~knobs[0].get or In.kr(0, 1) or Bus(\control, 0, 1).get
 */
+
 ~knobs = Array.newClear(5);
 5.do { |i|
-	~knobs.put(i, Bus.control(server: s, numChannels: 1));
+	~knobs.put(i, Bus.control(numChannels: 1));
 };
 
 
@@ -74,8 +67,8 @@ OSCdef( \OrganelleKnobs,
 			val = msg[i+1] / 1023;
 			bus = ~knobs[i];
 			if (s.serverRunning) {
-				if (val != bus.get) {
-					bus.set(val);
+				if (val != bus.getSynchronous) {
+					bus.setSynchronous(val);
 					if (i == 4) {
 						s.volume.volume = val.ampdb;
 					}
@@ -84,7 +77,7 @@ OSCdef( \OrganelleKnobs,
 		}
 	},
 	"/knobs",
-	recvPort:~organelleHWPort
+	recvPort:4000
 );
 
 //not defined here!	"/enc"
@@ -92,6 +85,7 @@ OSCdef( \OrganelleKnobs,
 //not defined here!	"/fs"
 
 
+//Gracefully shutdown the SuperCollider server when the kill-patch script is run
 OSCdef( \KillPatch,
 	{
 		arg msg, time, addr, recvPort;
@@ -105,38 +99,51 @@ OSCdef( \KillPatch,
 
 //VUMeter///////
 //Setup control bus for VU meter
-~vuBus = Bus.control(server: s, numChannels: 4);
+~vuBus = Array.newClear(4);
+4.do{|i|
+	~vuBus.put(i, Bus.control(numChannels: 1));
+	};
+
+~updateVU = {
+	|array, peakBits|
+	var levels, tmp;
+	levels = Array.newClear(4);
+	array.do{ |bus, i|
+		tmp = (bus.getSynchronous * 11).asInteger;
+		levels.put(i, tmp);
+	};
+	m.sendMsg("/oled/vumeter", levels[2], levels[3], levels[0], levels[1], peakInt);
+};
 
 OSCdef( \rcvPeakRMS,
 	{
 		arg msg, time, addr, recvPort;
-		var index, rms, peak, now, peakBitmask = 0;
-		now = Array.newClear(4);
+		var index, rms, peak, peakbits = 0;
+
 		index = msg[2];
-		peak = msg[3];
-		rms = msg[4];
-		~vuBus.setAt(offset: index, values: [ rms ]);
-		if ( peak >= 1.0 ){
-			peakBitmask.setBit(index, true);
+		peak = msg[3].ampdb.linlin(-80, 0, 0, 1);
+		rms = msg[4].ampdb.linlin(-80, 0, 0, 1);
+
+		format("peak: %", peak).postln;
+		~vuBus[index].setSynchronous( rms );
+
+		if ( peak > 0.99 ){
+			peakbits.setBit(index + 4, true);
 		}{
-			peakBitmask.setBit(index, false);
+			peakbits.setBit(index + 4, false);
 		};
-		//rotate bitmask so that peaks line up with Organelle UI: In1, In2, Out1, Out2
-		peakBitmask = peakBitmask.asBinaryDigits[4..7].rotate(2);
-		peakBitmask = peakBitmask.sum({
-			|bit, i|
-			bit * 2.pow(3 - i);
+
+		//rotate bitmask so that peaks line up with Organelle UI:Out1, Out2, In1, In2 --->>> In1, In2, Out1, Out2
+		peakbits = peakbits.asBinaryDigits[4..7].rotate(2);
+		peakbits = peakbits.sum({|bit, i|
+			bit * 2.pow(3-i);
 		});
 
-		~vuBus.get({|channels|
-			var levels;
-			levels = (channels * 11).asInteger;
-			m.sendMsg("/oled/vumeter", levels[2], levels[3], levels[0], levels[1], peakBitmask);
-		});
+		~updateVU.value(~vuBus, peakbits);
 
 	},
 	"/rcvPeakRMS",
-	recvPort: ~langPort
+	recvPort: 57120
 );
 
 //Setup MIDI, pulling device from Organelle settings in /sdcard/patch_loaded.sh
@@ -181,28 +188,16 @@ s.waitForBoot({
 			4.do { |i|
 				buses.put(i, Bus(rate: \audio, index: i, numChannels: 1));
 				sigs.put(i, In.ar(buses[i], 1));
-				if (i < 2) {
-					//OUTPUTS
-					SendPeakRMS.kr(
-						sig: sigs[i],
-						cmdName: '/rcvPeakRMS',
-						replyID: i
-					);
-				}{
-					//INPUTS
-					SendPeakRMS.kr(
-						sig: sigs[i],
-						cmdName: '/rcvPeakRMS',
-						replyID: i
-					);
-				}
+				SendPeakRMS.kr(
+					sig: sigs[i],
+					cmdName: '/rcvPeakRMS',
+					replyID: i
+				);
 			}
 		}).add.play
 	)
 });
 
-x = Synth(\default);
-
-x.free
-
-
+//x = {SinOsc.ar * In.kr(0).linlin(0,1,0,5)}.play
+//x.free
+//s.freeAll
