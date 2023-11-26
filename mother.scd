@@ -52,24 +52,21 @@ Knob values are saved to server-side control buses!
 get a knob value by using (for example) ~knobs[0].get or In.kr(0, 1) or Bus(\control, 0, 1).get
 */
 
-~knobs = Array.newClear(5);
-5.do { |i|
-	~knobs.put(i, Bus.control(numChannels: 1));
-};
+~knobs = Bus.control(numChannels: 6);
 
 
 OSCdef( \OrganelleKnobs,
 	{
 		arg msg, time, addr, recvPort;
-		var val, bus;
-		5.do {
-			|i|
-			val = msg[i+1] / 1023;
-			bus = ~knobs[i];
-			if (s.serverRunning) {
-				if (val != bus.getSynchronous) {
-					bus.setSynchronous(val);
-					if (i == 4) {
+		var knobs, val;
+		if (s.serverRunning) {
+		knobs = ~knobs.getnSynchronous(6);
+		knobs.do {
+			|current, index|
+			val = msg[index+1] / 1023;
+				if (val != current) {
+					Bus(\control, ~knobs.index + index).setSynchronous(val);
+					if (index == 4) {
 						s.volume.volume = val.ampdb;
 					}
 				}
@@ -80,19 +77,28 @@ OSCdef( \OrganelleKnobs,
 	recvPort:4000
 );
 
+//Encoder behavior is weird- you need to enable submenu for the messages to even be sent. most patches don't use this at all. TODO!
 //not defined here!	"/enc"
 //not defined here!	"/encbut"
-//not defined here!	"/fs"
 
+
+//Write footswitch state to a control bus. For most pedals 0 =
+~fs = Bus.control;
+
+OSCdef( \footswitch,
+	{
+		arg msg, time, addr, recvPort;
+		~fs.setSynchronous(msg[1]);
+	},
+	"/fs",
+	recvPort:4000
+);
 
 //Gracefully shutdown the SuperCollider server when the kill-patch script is run
 OSCdef( \KillPatch,
 	{
 		arg msg, time, addr, recvPort;
-
-		if ( msg[1]>0,
-			{s.quit;}
-		);
+		s.quit;
 	},
 	"/quit"
 );
@@ -101,19 +107,19 @@ OSCdef( \KillPatch,
 //Setup control bus for VU meter
 ~vuBus = Array.newClear(4);
 4.do{|i|
-	~vuBus.put(i, Bus.control(numChannels: 1));
+	~vuBus.put(i, Bus.control);
 	};
 
-~updateVU = {
-	|array, peakBits|
-	var levels, tmp;
-	levels = Array.newClear(4);
-	array.do{ |bus, i|
-		tmp = (bus.getSynchronous * 11).asInteger;
-		levels.put(i, tmp);
-	};
-	m.sendMsg("/oled/vumeter", levels[2], levels[3], levels[0], levels[1], peakInt);
-};
+// ~updateVU = {
+// 	|array, peakInt|
+// 	var levels, tmp;
+// 	levels = Array.newClear(4);
+// 	array.do{ |bus, i|
+// 		tmp = (bus.getSynchronous * 11).asInteger;
+// 		levels.put(i, tmp);
+// 	};
+// 	m.sendMsg("/oled/vumeter", levels[2], levels[3], levels[0], levels[1], peakInt);
+// };
 
 OSCdef( \rcvPeakRMS,
 	{
@@ -124,7 +130,7 @@ OSCdef( \rcvPeakRMS,
 		peak = msg[3].ampdb.linlin(-80, 0, 0, 1);
 		rms = msg[4].ampdb.linlin(-80, 0, 0, 1);
 
-		format("peak: %", peak).postln;
+		//format("peak: %", peak).postln;
 		~vuBus[index].setSynchronous( rms );
 
 		if ( peak > 0.99 ){
@@ -139,7 +145,7 @@ OSCdef( \rcvPeakRMS,
 			bit * 2.pow(3-i);
 		});
 
-		~updateVU.value(~vuBus, peakbits);
+		//~updateVU.value(~vuBus, peakbits);
 
 	},
 	"/rcvPeakRMS",
