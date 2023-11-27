@@ -105,48 +105,34 @@ OSCdef( \KillPatch,
 
 //VUMeter///////
 //Setup control bus for VU meter
-~vuBus = Array.newClear(4);
-4.do{|i|
-	~vuBus.put(i, Bus.control);
-	};
-
-// ~updateVU = {
-// 	|array, peakInt|
-// 	var levels, tmp;
-// 	levels = Array.newClear(4);
-// 	array.do{ |bus, i|
-// 		tmp = (bus.getSynchronous * 11).asInteger;
-// 		levels.put(i, tmp);
-// 	};
-// 	m.sendMsg("/oled/vumeter", levels[2], levels[3], levels[0], levels[1], peakInt);
-// };
+~vuBus = Bus.control(numChannels: 4);
+~vuVals = 0 ! 4;
+~peakbits = 0;
 
 OSCdef( \rcvPeakRMS,
 	{
 		arg msg, time, addr, recvPort;
-		var index, rms, peak, peakbits = 0;
+		var replyId, bus, rms, peak, message;
 
-		index = msg[2];
+		replyId = msg[2];
 		peak = msg[3].ampdb.linlin(-80, 0, 0, 1);
 		rms = msg[4].ampdb.linlin(-80, 0, 0, 1);
 
 		//format("peak: %", peak).postln;
-		~vuBus[index].setSynchronous( rms );
+		bus = Bus(\control, ~vuBus.index + replyId);
+		bus.setSynchronous ( rms );
 
-		if ( peak > 0.99 ){
-			peakbits.setBit(index + 4, true);
+		if (peak > 0.9){
+			~peakbits = ~peakbits.setBit(replyId, true)
 		}{
-			peakbits.setBit(index + 4, false);
+			~peakbits = ~peakbits.setBit(replyId, false)
 		};
 
-		//rotate bitmask so that peaks line up with Organelle UI:Out1, Out2, In1, In2 --->>> In1, In2, Out1, Out2
-		peakbits = peakbits.asBinaryDigits[4..7].rotate(2);
-		peakbits = peakbits.sum({|bit, i|
-			bit * 2.pow(3-i);
-		});
-
-		//~updateVU.value(~vuBus, peakbits);
-
+		if (s.serverRunning) {
+			~vuVals = ~vuBus.getnSynchronous(4);
+			message = [ "/oled/vumeter" ]  ++ (~vuVals*12).asInteger ++ [ ~peakbits ];
+			m.sendMsg(*message);
+		}
 	},
 	"/rcvPeakRMS",
 	recvPort: 57120
@@ -177,6 +163,8 @@ OSCdef( \rcvPeakRMS,
 	});
 };
 
+~ioBus = Bus(rate: \audio, index: 0, numChannels: 4);
+
 // configure and boot the server
 s.options.bindAddress = "0.0.0.0";
 s.waitForBoot({
@@ -184,26 +172,31 @@ s.waitForBoot({
 		m.sendMsg("/oled/line/1","remote server ready");
 		m.sendMsg("/led", 2);
 		s.volume.lag = 0.2;
-		s.volume.volume = 0.1.ampdb;
+		//s.volume.volume = 0.1.ampdb;
 		~setupMIDI.();
 
 		SynthDef(\OrganelleIO, {
-			var buses, sigs;
-			buses = Array.newClear(4);
-			sigs = Array.newClear(4);
-			4.do { |i|
-				buses.put(i, Bus(rate: \audio, index: i, numChannels: 1));
-				sigs.put(i, In.ar(buses[i], 1));
+
+			[2,3,0,1].do {
+				|input, i|
 				SendPeakRMS.kr(
-					sig: sigs[i],
+					sig: ~ioBus.ar[input],
 					cmdName: '/rcvPeakRMS',
-					replyID: i
+					peakLag: 4,
+					replyID: i;
 				);
 			}
+
 		}).add.play
 	)
 });
 
-//x = {SinOsc.ar * In.kr(0).linlin(0,1,0,5)}.play
-//x.free
-//s.freeAll
+
+
+
+
+
+
+
+
+
