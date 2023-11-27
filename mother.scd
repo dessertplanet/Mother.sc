@@ -1,4 +1,7 @@
 // Server.default = Server.remote(\organelle, NetAddr("localhost", 57110), o)
+
+~mainPatch = "/tmp/patch/main.scd".standardizePath;
+
 //Environment variables
 ~mother = "localhost";
 
@@ -20,13 +23,13 @@ OSC Handling
 Organelle OSC inbound messages
     /key ii 10 100
     /knobs iiiiii 604 342 451 64 666 1023
-    /enc i 1
-    /encbut i 1
+    /quit
     /fs  i 1
 
 not implement yet
     /footSwitchPolarity
-    /quit
+    /enc i 1
+    /encbut i 1
     /midich
 
 notes:
@@ -35,37 +38,67 @@ knobs 1-4 = pots, 5 = volume , 6 = expr pedal
 enc = 1 = clockwise, 0 anti
 */
 
-OSCdef( \OrganelleKeys,
+OSCdef( \RouteAux,
 	{
 
 		arg msg, time, addr, recvPort;
 
-		//KEY STUFF JERE
+		if(msg[1] == 0){
+			~self.sendMsg("/aux", msg[2]);
+		}{
+			~self.sendMsg("/note", msg[1] + 59, msg[2] / 3 );
+		}
 	},
 	"/key",
 	recvPort:4000
 );
 
-//KNOBS////////////////
+OSCdef( \aux,
+	{
+		arg msg, time, addr, recvPort;
+		//define this in your patch
+	},
+	"/aux",
+	recvPort:57120
+);
+
+OSCdef( \note,
+	{
+		arg msg, time, addr, recvPort;
+		//define this in your patch
+	},
+	"/note",
+	recvPort:57120
+);
+
+OSCdef( \knobs,
+	{
+		//define this in your patch! Use the ~knobs[0-6] buses to getSynchronous and setSynchronous these values.
+	},
+	"/knobs",
+	recvPort:4000
+);
+
+
 /*
 Knob values are saved to server-side control buses!
-get a knob value by using (for example) ~knobs[0].get or In.kr(0, 1) or Bus(\control, 0, 1).get
+get a knob value by using (for example) ~knobsBus[0].get or In.kr(0, 1) or Bus(\control, 0, 1).get
 */
 
-~knobs = Bus.control(numChannels: 6);
+~knobsBus = Bus.control(numChannels: 6);
+~knobs = 6.collect({ |i| Bus(\control, ~knobsBus.index + i) });
 
-
-OSCdef( \OrganelleKnobs,
+OSCdef( \BusKnobs,
 	{
 		arg msg, time, addr, recvPort;
 		var knobs, val;
 		if (s.serverRunning) {
-		knobs = ~knobs.getnSynchronous(6);
+		knobs = ~knobsBus.getnSynchronous(6);
 		knobs.do {
 			|current, index|
 			val = msg[index+1] / 1023;
 				if (val != current) {
-					Bus(\control, ~knobs.index + index).setSynchronous(val);
+					~knobs[index].setSynchronous(val);
 					if (index == 4) {
 						s.volume.volume = val.ampdb;
 					}
@@ -83,9 +116,10 @@ OSCdef( \OrganelleKnobs,
 
 
 //Write footswitch state to a control bus. For most pedals 0 =
+
 ~fs = Bus.control;
 
-OSCdef( \footswitch,
+OSCdef( \BusFS,
 	{
 		arg msg, time, addr, recvPort;
 		~fs.setSynchronous(msg[1]);
@@ -163,15 +197,24 @@ OSCdef( \rcvPeakRMS,
 	});
 };
 
+MIDIdef.noteOn(\midiNoteOn, {
+	| vel, note |
+	~self.sendMsg("/note", note, vel)
+});
+
+MIDIdef.noteOff(\midiNoteOff, {
+	| vel, note |
+	~self.sendMsg("/note", note, 0)
+});
+
 ~ioBus = Bus(rate: \audio, index: 0, numChannels: 4);
 
 // configure and boot the server
 s.options.bindAddress = "0.0.0.0";
 s.waitForBoot({
 	(
-		m.sendMsg("/oled/line/1","remote server ready");
-		m.sendMsg("/led", 2);
-		s.volume.lag = 0.2;
+		s.volume.lag = 0.1;
+		s.volume.volume = 0.2.ampdb;
 		//s.volume.volume = 0.1.ampdb;
 		~setupMIDI.();
 
@@ -187,7 +230,11 @@ s.waitForBoot({
 				);
 			}
 
-		}).add.play
+		}).add.play;
+
+		m.sendMsg("/oled/line/1", "...ready");
+
+		~mainPatch.load;
 	)
 });
 
