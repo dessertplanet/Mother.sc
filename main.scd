@@ -1,8 +1,10 @@
+//Based on TheTechnobear's Simple Poly!
 
 ~cutoff = 5000;
 ~voices = nil ! 128;
 
-m.sendMsg("/oled/line/1", format("Cutoff %", ~cutoff.asInteger));
+~updateOLED = { m.sendMsg("/oled/line/1", format("Cutoff %", ~cutoff.asInteger)) };
+~updateOLED.();
 
 OSCdef(\notes,
 	{
@@ -22,7 +24,7 @@ OSCdef(\notes,
 		}
 	},
 	"/note",
-	recvPort: 57120
+	recvPort: NetAddr.langPort
 );
 
 OSCdef(\knobs,
@@ -32,10 +34,10 @@ OSCdef(\knobs,
 			{ |voice|
 				voice.set(\cutoff, ~cutoff);
 		});
-		m.sendMsg("/oled/line/1", format("Cutoff %", ~cutoff.asInteger));
+		~updateOLED.();
 	},
 	"/knobs",
-	recvPort: 4000
+	recvPort: NetAddr.langPort
 );
 
 SynthDef(\testSynth,
@@ -44,7 +46,7 @@ SynthDef(\testSynth,
 		sig = Saw.ar(\freq.kr(440));
 		env = EnvGen.ar(Env.adsr(),\gate.kr(1),doneAction:2);
 		sig = sig * env * \amp.ir(0.01);
-		sig = LPF.ar(sig, \cutoff.ar(val: ~cutoff, lag: 0.2));
+		sig = LPF.ar(sig, \cutoff.ar(val: 5000, lag: 0.2));
 		Out.ar(\out.ir(0),sig!2);
 }).add;
 
