@@ -13,7 +13,7 @@ OSCdef(\notes,
 
 		if (vel > 0){
 			~voices[note] = Synth(\testSynth, [
-				freq: msg[1].midicps,
+				freq: note.midicps,
 				cutoff: ~cutoff,
 				amp: vel/127 * 0.3 ])
 		}{
